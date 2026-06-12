@@ -13,8 +13,8 @@ cEID.grid_rowconfigure(0, weight=1)
 
 x = sp.Symbol('x')
 
-cEID.grid_columnconfigure(0, weight=1) # Panel izquierdo
-cEID.grid_columnconfigure(1, weight=4) # Panel derecho 
+cEID.grid_columnconfigure(0, weight=1)
+cEID.grid_columnconfigure(1, weight=4)
 cEID.grid_rowconfigure(0, weight=1)
 
 frame_izquierdo = ctk.CTkFrame(cEID, fg_color="transparent")
@@ -44,25 +44,119 @@ label_resultado.pack(pady=10, padx=45, anchor="nw")
 
 fig = plt.Figure(figsize=(5, 4), dpi=100)
 ax = fig.add_subplot(111)
+fig.patch.set_facecolor('#1a1a1a')
+ax.set_facecolor('#121212')
+ax.tick_params(colors='white')
+ax.grid(True, color='#444444')
+
 canvas = FigureCanvasTkAgg(fig, master=frame_derecho)
 canvas.draw()
 canvas.get_tk_widget().pack(fill="both", expand=True, padx=5, pady=5)
 
-def Calcular():
-    pass
+def calcular_limite_algoritmo(funcion_sympy, punto_c):
+    tolerancia = 0.05
+    limite_izq = None
+    h = 0.1
+    for _ in range(5):
+        punto_eval = punto_c - h
+        limite_izq = float(funcion_sympy.subs(x, punto_eval).evalf())
+        h /= 10
 
-def Graficar():
+    limite_der = None
+    h = 0.1
+    for _ in range(5):
+        punto_eval = punto_c + h
+        limite_der = float(funcion_sympy.subs(x, punto_eval).evalf())
+        h /= 10
+
+    if abs(limite_izq - limite_der) < tolerancia:
+        return round((limite_izq + limite_der) / 2, 4)
+    else:
+        return "No existe (Límites distintos)"
+
+def Calcular():
+    texto_func = cajatexto.get("0.0", "end-1c").strip()
+    texto_tend = cajatextoten.get("0.0", "end-1c").strip()
+
+    if not texto_func or not texto_tend:
+        label_resultado.configure(text="Error: Rellene campos.")
+        return
+
+    try:
+        func_parseada = texto_func.replace('^', '**')
+        funcion_sympy = sp.sympify(func_parseada)
+        punto_c = float(texto_tend)
+
+        resultado = calcular_limite_algoritmo(funcion_sympy, punto_c)
+        label_resultado.configure(text=f"lim = {resultado}")
+    except Exception as e:
+        label_resultado.configure(text="Error en los datos.")
+
     ax.clear()
+    ax.grid(True, color='#444444')
+
+    texto_func = cajatexto.get("0.0", "end-1c").strip()
+    texto_tend = cajatextoten.get("0.0", "end-1c").strip()
+
+    if not texto_func:
+        return
+
+    try:
+        func_parseada = texto_func.replace('^', '**')
+        funcion_sympy = sp.sympify(func_parseada)
+        punto_c = float(texto_tend) if texto_tend else 0.0
+        
+        x_valores = []
+        y_valores = []
+        
+        if punto_c == 9999.0 or punto_c == -9999.0:
+            inicio_x = -10.0
+            fin_x = 10.0
+        else:
+            inicio_x = punto_c - 5
+            fin_x = punto_c + 5
+            
+        paso = 0.05
+        actual_x = inicio_x
+        while actual_x <= fin_x:
+            try:
+                res_y = funcion_sympy.subs(x, actual_x).evalf()
+                if res_y.is_real:
+                    x_valores.append(actual_x)
+                    y_valores.append(float(res_y))
+            except:
+                pass
+            actual_x += paso
+
+        ax.plot(x_valores, y_valores, color="#D92B4F", linewidth=2, label=f"f(x)={texto_func}")
+        
+        texto_res = label_resultado.cget("text")
+        if "lim =" in texto_res and "No existe" not in texto_res:
+            if punto_c != 9999.0 and punto_c != -9999.0:
+                valor_lim = float(texto_res.split("=")[1])
+                ax.plot(punto_c, valor_lim, 'go', markersize=8, label=f"Límite ({punto_c}, {valor_lim})")
+
+        ax.legend(facecolor='#1a1a1a', labelcolor='white')
+        canvas.draw()
+        
+    except Exception as e:
+        label_resultado.configure(text="Error al graficar.")
 
 def Limpiar():
     cajatexto.delete("0.0", ctk.END)
     cajatextoten.delete("0.0", ctk.END)
+    label_resultado.configure(text="Resultado del cálculo:")
+    ax.clear()
+    ax.grid(True, color='#444444')
+    canvas.draw()
 
 def InfinitoNegativo():
-    pass
+    cajatextoten.delete("0.0", ctk.END)
+    cajatextoten.insert(ctk.END, "-9999")
 
 def InfinitoPositivo():
-    pass
+    cajatextoten.delete("0.0", ctk.END)
+    cajatextoten.insert(ctk.END, "9999")
 
 def Sin():
     cajatexto.insert(ctk.END, "sin(x)")
@@ -74,12 +168,10 @@ def Tg():
     cajatexto.insert(ctk.END, "tan(x)")
 
 def Raiz():
-    pass
+    cajatexto.insert(ctk.END, "sqrt(x)")
 
 boton_calcular = ctk.CTkButton(master=frame_botones, text="Calcular", command=Calcular, width=100, fg_color="#D92B4F", hover_color="#C2294C")
 boton_calcular.grid(row=0, column=0, padx=5, pady=5)
-boton_graficar = ctk.CTkButton(master=frame_botones, text="Graficar", command=Graficar, width=100, fg_color="#D92B4F", hover_color="#C2294C")
-boton_graficar.grid(row=0, column=1, padx=5, pady=5)
 boton_limpiar = ctk.CTkButton(master=frame_botones, text="Limpiar", command=Limpiar, width=100, fg_color="#D92B4F", hover_color="#C2294C")
 boton_limpiar.grid(row=0, column=2, padx=5, pady=5)
 
